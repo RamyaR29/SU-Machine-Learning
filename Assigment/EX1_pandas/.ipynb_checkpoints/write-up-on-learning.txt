@@ -1,0 +1,5 @@
+Through this exercise, I developed a deeper understanding of two things:
+1. Pandas and DataFrames:
+    Both these packages support efficient data manipulation and analysis in Python. I learned how to read structured data files into DataFrames, inspect datasets using indexing and slicing, and perform transformations such as selecting, filtering, and dropping columns. Working with real datasets helped me better understand how Pandas abstracts tabular data operations while maintaining performance and clarity.
+2. Matplotlib:  
+    Creating visualizations using Matplotlib helped with graphical representations of data, distributions, and anomalies that are not immediately obvious from raw data. This exercise strengthened my problem-solving approach by encouraging me to explore data iteratively, validate assumptions through code, and combine data manipulation with visualization to extract meaningful insights.
