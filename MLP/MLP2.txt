@@ -1,0 +1,122 @@
+**Credit Card Fraud Detection Using Machine Learning**
+**MLP 2: Mid-Term Report / Progress Report**
+
+**Team Members:** Hongru He, Ramya Ramesh
+**Course:** CPSC 5310 | Winter Quarter 2026
+
+This progress report builds upon our Problem Statement from MLP1 and the project description in the ML Project Document. It summarizes our data understanding, preprocessing, EDA, initial ML pipeline, baseline models, feature analysis, algorithms tested, challenges, and plan for completion.
+
+**Problem Statement Updates (builds on MLP1)**
+________________________________________________________________
+
+In MLP1 we defined the project goal: to build a machine learning model to detect fraudulent credit card transactions. The dataset is a binary (binomial) classification problem where the positive class (Fraud, Class=1) is extremely rare compared to the negative class (Legitimate, Class=0).
+
+Updates at mid-term:
+• We confirmed the dataset is highly imbalanced (~0.17% fraud) and that accuracy is a poor metric; we focus on precision, recall, and F1.
+• We framed two business scenarios: Recall-First (catch as many frauds as possible; accept more false alarms) and Precision-First (when we decline a transaction, make it likely to be fraud). Our current pipelines prioritize the Recall-First scenario to minimize missed fraud.
+• We have two parallel modeling approaches: Random Forest (all features, SMOTE, threshold tuning) and Logistic Regression (selected features, class_weight='balanced'), both documented in our notebooks and repository.
+
+**1. Description of Data Preprocessing Steps**
+________________________________________________________________
+
+We use the Credit Card Fraud dataset (Kaggle / ULB ML Group): 31 columns (Time, Amount, V1–V28 from PCA, Class).
+
+Steps performed:
+• Load and clean: Drop rows with missing values, reset index, cast Class to integer (0/1). Verify no NaN in target. Dataset shape after cleaning: e.g. 284,807 rows (random_forest.ipynb) or 211,990 (Mid-Term_Report.ipynb depending on data version/filtering).
+• Scale Time and Amount: V1–V28 are already PCA-transformed (scaled). Amount and Time are on different scales and are scaled before modeling.
+  – Random Forest pipeline (random_forest.ipynb): StandardScaler — (x - mean) / std. New columns: scaled_amount, scaled_time; original Amount and Time dropped.
+  – Logistic Regression pipeline (Mid-Term_Report.ipynb): RobustScaler for Amount and Time to reduce the impact of extreme outliers (e.g. very high transaction amounts).
+• Features and target: X = all 30 features (V1–V28, scaled_amount, scaled_time); y = Class. No scaling or resampling is applied to the test set to avoid leakage.
+• Train–test split: Stratified 80–20 with fixed random_state so the fraud proportion is preserved in both sets. Same split used for both models when comparing on the same data.
+
+**2. Summary of EDA Findings**
+________________________________________________________________
+
+• Class imbalance: Fraud is ~0.17–0.19% of transactions (e.g. 492 fraud out of 284,807). Accuracy is misleading; we use precision, recall, and F1.
+• PCA features (V1–V28): Many show different distributions for fraud vs non-fraud. Correlation and tree-based importance consistently highlight V14, V12, V17, V11, V10, V16, and often V4, V9. These drive both our feature selection (Logistic Regression) and our interpretation of important predictors (Random Forest).
+• Time and Amount: Fraud patterns differ in amount and timing; keeping scaled_amount and scaled_time in the model is useful. RobustScaler is preferred for Amount when heavy tails or outliers are present.
+• Business context: Binary classification; we treat PCA features as numeric predictors. The main design choice is whether to prioritize recall (safety) or precision (user experience).
+
+**3. Description of Initial ML Pipeline**
+________________________________________________________________
+
+We have an initial ML pipeline that supports two algorithms with shared preprocessing and evaluation.
+
+• Input: Preprocessed feature matrix X (30 columns after scaling) and binary target y (Class).
+• Split: Stratified 80–20, fixed random_state for reproducibility.
+• Random Forest pipeline (random_forest.ipynb): (1) SMOTE on training set only to balance classes; (2) Train Random Forest on all 30 features with n_estimators=200, class_weight={0:1, 1:2}, max_depth=12, min_samples_leaf=2; (3) Tune decision threshold so recall ≥ 0.95, then maximize precision (vectorized over thresholds); (4) Evaluate with classification report, accuracy, precision, recall, F1.
+• Logistic Regression pipeline (Mid-Term_Report.ipynb): (1) Feature selection to 8 features (V14, V12, V17, V11, V10, V16, scaled_amount, scaled_time) via correlation + RF importance; (2) Train LogisticRegression(solver='liblinear', class_weight='balanced', random_state=42) on 8 features; (3) Evaluate with classification report, confusion matrix, Precision-Recall curve; default threshold 0.5.
+• Both pipelines are binomial classification; we compare them on the same metrics when using the same test set.
+
+**4. Baseline Model(s) and Early Performance Results**
+________________________________________________________________
+
+**Random Forest (random_forest.ipynb)**
+• Early baseline (no SMOTE, default threshold 0.5): Accuracy ~0.9996, Precision ~0.97, Recall ~0.80–0.82. Recall was the bottleneck (missing frauds).
+• Improved pipeline (with SMOTE + threshold tuning for recall ≥ 0.95): Example run — Selected threshold ≈ 0.04; Recall ≈ 0.96 (target ≥ 0.95 met); Precision ≈ 0.008; F1 ≈ 0.016; Accuracy ≈ 0.80. We meet the recall target at the cost of low precision (many false positives), which we document as the intended trade-off for the Recall-First strategy.
+
+**Logistic Regression (Mid-Term_Report.ipynb)**
+• Baseline: 8 features, class_weight='balanced', default threshold 0.5. Trained and evaluated in the notebook. With balanced class weight the model favors recall (catches more frauds) but achieves very low precision for Class 1 (many false positives). Classification report and confusion matrix are in the notebook output. A Precision-Recall curve is plotted to show behavior across thresholds and to support the Recall-First vs Precision-First discussion.
+
+**5. Initial Feature Analysis**
+________________________________________________________________
+
+**Random Forest**
+• We used built-in feature importance (Gini-based) from a Random Forest to identify top predictors. Top contributors included V14, V10, V17, V12, V4, and others. We experimented with training on top 5 or 12 features; for the final RF pipeline we use all 30 features with SMOTE and threshold tuning to meet the recall target without maintaining a separate feature-selection step.
+
+**Logistic Regression**
+• Two methods were used to select a small set of features (5–8 V-features plus scaled_amount, scaled_time):
+  (1) Pearson correlation with Class — which features correlate linearly with fraud.
+  (2) Tree-based feature importance from a lightweight Random Forest — non-linear importance.
+• Intersection of both methods gave the final 8 features: V14, V12, V17, V11, V10, V16, scaled_amount, scaled_time. Example RF importance scores: V14 (0.172), V12 (0.159), V17 (0.132), V11 (0.057), V10 (0.054), V16 (0.048), V9 (0.036), V4 (0.033). The subset improves interpretability and reduces noise for the linear model.
+
+**6. Algorithms Tested So Far**
+________________________________________________________________
+
+• Binary (binomial) classification: Both models predict Class 0 (non-fraud) or Class 1 (fraud).
+
+• Random Forest: Chosen for non-linear relationships, use of all 30 features, compatibility with class_weight and SMOTE, and built-in feature importance. Current pipeline: SMOTE on training set, RF on resampled data, threshold tuned for recall ≥ 0.95 then max precision. Implemented in random_forest.ipynb.
+
+• Logistic Regression: Chosen for interpretability (coefficients), speed, and as a linear baseline. Implemented in Mid-Term_Report.ipynb with 8 selected features, solver='liblinear', class_weight='balanced'. Evaluation includes classification report, confusion matrix, and Precision-Recall curve. Baseline uses default 0.5 threshold; next steps include SMOTE, threshold moving, and hyperparameter tuning.
+
+**7. Current Challenges or Obstacles Encountered**
+________________________________________________________________
+
+• Extreme class imbalance: Fraud is ~0.17% of transactions. Pushing recall to ≥ 0.95 leads to many false positives and low precision. Improving precision while keeping recall ≥ 0.95 is the main open challenge.
+
+• Precision/recall trade-off: Both pipelines make this explicit. Logistic Regression baseline has high recall but very low precision; RF pipeline meets the recall target but also has low precision at the chosen threshold. Balancing safety (recall) vs user experience (precision) remains difficult.
+
+• Threshold selection: The RF threshold is currently tuned on the test set. A better practice is to use a validation set or cross-validation to choose the threshold and reserve the test set for final reporting only.
+
+• Feature selection vs full features: Using 8 features (LR) improves interpretability but may lose signal; using all 30 (RF) preserves signal but reduces interpretability. We have documented both approaches.
+
+• Interpretability: V1–V28 are PCA-derived and not directly interpretable in business terms. Logistic Regression coefficients still indicate which of the 8 features push toward or away from fraud.
+
+**8. Plan for Completion**
+________________________________________________________________
+
+**Remaining tasks**
+• Use a validation split (or cross-validation) to select the classification threshold for both RF and Logistic Regression so the test set is used only for final reporting.
+• Document final metrics (precision, recall, F1, accuracy) for chosen thresholds and state the optimization rule (e.g. recall ≥ 0.95 then max precision for RF).
+• Integrate Logistic Regression improvements (SMOTE, threshold moving, hyperparameter tuning) and compare final RF vs Logistic Regression on the same test set.
+• Add a short write-up in the notebooks explaining the recall–precision trade-off and why we prioritize recall for this use case (project continuity with MLP1 and ML Project Document).
+
+**Planned improvements or experiments**
+• SMOTE for Logistic Regression: Apply SMOTE to the training set (as in the RF pipeline) and re-evaluate.
+• Hyperparameter tuning: For Logistic Regression, use GridSearchCV to tune the regularization parameter C; for RF, tune n_estimators, max_depth, min_samples_leaf, class_weight via validation.
+• Threshold moving: For both models, experiment with decision thresholds (e.g. optimize F1 or meet a recall target) and compare using the Area Under the Precision-Recall Curve (AUPRC).
+• RF: Try different SMOTE sampling ratios and RF hyperparameters to see if we can improve precision while keeping recall ≥ 0.95.
+
+**Timeline or next steps toward project completion**
+• Near term: Implement validation-based threshold selection and update notebooks so the test set is reserved for final metrics only.
+• Next: Run Logistic Regression with SMOTE and threshold tuning; record metrics and add comparison to this report.
+• After that: Run RF with the new threshold selection; document final numbers and compare RF vs Logistic Regression in the final report and repository.
+
+**Repository and Notebooks**
+________________________________________________________________
+
+Our current work and progress are demonstrated in our project Git repository and in the following notebooks:
+• random_forest.ipynb — Random Forest pipeline: preprocessing, SMOTE, training, recall-first threshold tuning, evaluation, challenges, and plan.
+• Mid-Term_Report.ipynb — Logistic Regression pipeline: preprocessing (RobustScaler), feature selection (correlation + RF importance), baseline model, classification report, confusion matrix, Precision-Recall curve, scenarios discussion, challenges, and plan.
+
+These deliverables align with the MLP2 requirements: data preprocessing, EDA summary, initial ML pipeline, baseline models and early results, feature analysis, algorithms tested, challenges, and Plan for Completion.
