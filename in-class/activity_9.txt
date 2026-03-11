@@ -1,0 +1,9 @@
+1.	Neural networks learn patterns by adjusting weights and creating decision boundaries that separate different classes of data. I noticed that the first hidden layer learned simple patterns, and the second layer combined those patterns to make better predictions.
+
+2.	When I changed the activation function from tanh to ReLU, the model trained faster. The decision boundary also looked more straight and linear compared to tanh.
+
+3.	When the network had 1 hidden layer with 3 neurons, the training results were different each time I reset the model. This is because the network starts with random weights - which is not visible to us, so sometimes it learns faster and sometimes it gets stuck in a local minimum.
+
+4.	When I reduced the hidden layer to 2 neurons, the model could not properly separate the data. The decision boundary was too simple and the model made many mistakes, which shows underfitting - had to add many features.
+
+5.	I also learned that if the network becomes deeper, sometimes earlier layers learn more slowly because of the vanishing gradient problem, where gradients become smaller as they move backward through the network.
